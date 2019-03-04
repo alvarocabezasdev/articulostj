@@ -1,0 +1,7 @@
+name = Articulostj
+description = A block module that lists links to recent posts. 
+core = 7.x 
+package = My Modules 
+version = 7.x-1.0-dev
+dependencies[] = commerce : commerce
+configure = admin/config/content/articulostj
