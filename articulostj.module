@@ -112,8 +112,9 @@ function articulostj_block_view($delta = '') {
         foreach ($result as $node) {
           $product = commerce_product_load($node->entity_id);
           $items[] = array(
-            'data' => l($product->sku, 'node/' . $node->entity_id),     
-            ); 
+            //http://localhost/todojuguetes/#overlay=admin/commerce/products/5/edit%3Fdestination%3Dadmin/commerce/products
+            'data' => l($product->sku, 'admin/commerce/products/' . $node->entity_id . '/edit')
+          ); 
         }
 
        // No content in the last week.
