@@ -77,7 +77,7 @@ function articulostj_block_view($delta = '') {
   switch ($delta) {
     case 'articulostj':
       $block['subject'] = t('articulostj');
-      if (user_access('access content')) {
+      if (user_access('access articulostj content')) {
         // Use our custom function to retrieve data.
         $result = articulostj_contents('block',0);
         // Array to contain items for the block to render.
@@ -115,7 +115,7 @@ function articulostj_menu() {
   $items['admin/config/content/articulostj_menu'] = array(
     'title' => 'articulostj',
     'description' => 'Configuration for Articulostj module',
-    'page callback' => 'articulostj_page',//drupal_get_form
+    'page callback' => 'drupal_get_form',//drupal_get_form
     'access arguments' => array('access administration pages'),
     'page arguments' => array('articulostj_form'),
     'type' => MENU_NORMAL_ITEM
@@ -123,7 +123,7 @@ function articulostj_menu() {
 
 
     $items['articulostj_ra'] = array(
-    'title' => 'articulostj',
+    'title' => 'Últimas unidades',
     'page callback' => '_articulostj_page',
     'access callback' => TRUE,
   );
@@ -191,7 +191,7 @@ function articulostj_page() {
 
         $max = variable_get('articulostj_max', 3);
         // Array to contain items for the block to render.
-        $output = '<p>Articulos con stock menor a: '.$max.'</p>';
+        $output = '<p>Articulos con stock menor a '.$max.'</p>';
         // Iterate over the resultset and format as links.
 
 
@@ -225,6 +225,7 @@ function _articulostj_page(){
   $result = articulostj_contents('page',$max);
   //Array to contain items for the page to render.
   $items = array();
+  if (user_access('access articulostj content')) {
   //Iterate over the resultset and format as links.
   foreach ($result as $node) {
           $product = commerce_product_load($node->entity_id);
@@ -247,6 +248,7 @@ function _articulostj_page(){
       
     );
 
+}
 }
     return $page_array;  
 
