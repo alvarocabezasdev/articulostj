@@ -15,12 +15,14 @@
  * @param arg 
  *   Array that holds the current path as returned from arg() function
  */
+
+//Pagina de ayuda del modulo personalizado
 function articulostj_help($path, $arg) {
 
   switch ($path) {
-  
-    case "admin/help#articulostj":
     
+    case "admin/help#articulostj":
+      
       return '<p>' . t('Bloque desarrollado para mostrar un listado de los productos con stock 0 con su respectivo enlace a la edición del mismo. </br>La <a href="@blocks">pagina de administración de bloques</a> permite configurar tanto la parte interna del bloque como la posicion del mismo mediante "drag-and-drop". 
         </br>Módulo personalizado desarrollado por Adrián Carvajal y Álvaro Cabezas. Escríbenos con tu duda a: <a href="https://www.gmail.com">alvarocabezasdev@gmail.com</a>.', array(
         '@blocks' => url('admin/structure/block'),
@@ -34,6 +36,7 @@ function articulostj_help($path, $arg) {
 /**
  * Implements hook_block_info().
  */
+//Informacion del bloque 
 function articulostj_block_info() {
   $blocks['articulostj'] = array(
     // The name that will appear in the block list.
@@ -45,6 +48,9 @@ function articulostj_block_info() {
 }
 
 
+//Sentencias a la base de datos para obtener, en este caso, el numero de articulos que mostraremos tanto en el modulo como en la pagina.
+//En caso de $display tenga el valor de 'block', se hara una consulta para la informacion del bloque y se omitira $maxstock.
+//En caso de $display con valor 'page', se hara una consulta para la informacion de la pagina y $maxstock sera la cantidad maxima de stock para mostrar el articulo
 function articulostj_contents($display, $maxstock) {
   //Use Database API to retrieve products.
   //Si es un bloque usamos 0 por defecto para recuperar productos totalmente agotados.
@@ -73,30 +79,31 @@ function articulostj_contents($display, $maxstock) {
  * 
  * Prepares the contents of the block.
  */
+//Informacion que queremos mostrar en el bloque, llamando a la funcion para obtener los datos de la bd y creando los enlaces a la pagina editar producto
 function articulostj_block_view($delta = '') {
   switch ($delta) {
     case 'articulostj':
       $block['subject'] = t('articulostj');
       if (user_access('access articulostj content')) {
-        // Use our custom function to retrieve data.
+        //array de datos para obtener los productos con stock 0 
         $result = articulostj_contents('block',0);
-        // Array to contain items for the block to render.
         $items = array();
 
-        // Iterate over the resultset and format as links.
         foreach ($result as $node) {
+          //array para relacionar la tabla con el stock junto con la tabla de productos con la informacion de los datos de cada articulo.
           $product = commerce_product_load($node->entity_id);
+
           $items[] = array(
             'data' => l($product->sku, 'admin/commerce/products/' . $node->entity_id . '/edit')
           ); 
         }
 
-       // No content in the last week.
+        //En caso de estar vacio se mostrara No articles available
         if (empty($items)) {
           $block['content'] = t('No articles available.');  
         } 
         else {
-          // Pass data through theme function.
+          //Si no esta vacio se devolvera el array rellenado anteriormente con los enlaces a los productos
           $block['content'] = theme('item_list', array(
             'items' => $items));
         }
@@ -109,22 +116,23 @@ function articulostj_block_view($delta = '') {
 /**
  * Implements hook_menu().
  */
+//Configuramos la vista tanto del bloque como de la pagina.
 function articulostj_menu() {
   $items = array();
-
+  //bloque
   $items['admin/config/content/articulostj_menu'] = array(
     'title' => 'articulostj',
     'description' => 'Configuration for Articulostj module',
-    'page callback' => 'drupal_get_form',//drupal_get_form
+    'page callback' => 'drupal_get_form',
     'access arguments' => array('access administration pages'),
     'page arguments' => array('articulostj_form'),
     'type' => MENU_NORMAL_ITEM
   );
 
-
+    //pagina
     $items['articulostj_ra'] = array(
     'title' => 'Últimas unidades',
-    'page callback' => '_articulostj_page',
+    'page callback' => '_articulostj_page', //llamamos a la funcion que obtiene la informacion de la pagina
     'access callback' => TRUE,
   );
 
@@ -137,12 +145,13 @@ function articulostj_menu() {
  *
  * @see articulostj_menu()
  */
+//Configuracion del bloque para obtener el stock maximo que queremos mostrar para cada articulo
 function articulostj_form($form, &$form_state) {
   $form['articulostj_max'] = array(
     '#type' => 'textfield',
     '#title' => t('Maximum number of products'),
     '#default_value' => variable_get('articulostj_max', 3),
-    '#size' => 2,
+      '#size' => 2,
     '#maxlength' => 2,
     '#description' => t('The maximum number of links to display in the block.'),
     '#required' => TRUE,
@@ -160,6 +169,7 @@ function articulostj_form($form, &$form_state) {
  *   An array that stores information about the form's current state 
  *   during processing.
  */
+//Comprobamos que el stock introducido es un valor numerico y positivo
 function articulostj_form_validate($form, &$form_state){
   $max_num = $form_state['values']['articulostj_max'];
   if (!is_numeric($max_num)){
@@ -173,6 +183,7 @@ function articulostj_form_validate($form, &$form_state){
 /**
  * Implements hook_permission().
  */
+//Habilitamos los permisos tanto para nuestro modulo
 function articulostj_permission() {
   return array(
     'access articulostj content' => array(
@@ -186,14 +197,12 @@ function articulostj_permission() {
 * Implements hook_menu().
 */
 
-
+//Configura la vista para mostrar los productos en nuestra pagina y devolvemos toda la informacion a mostrar
 function articulostj_page() {
 
         $max = variable_get('articulostj_max', 3);
-        // Array to contain items for the block to render.
-        $output = '<p>Articulos con stock menor a '.$max.'</p>';
-        // Iterate over the resultset and format as links.
 
+        $output = '<p>Articulos con stock menor a '.$max.'</p>';
 
         $result = articulostj_contents('page',$max);
 
@@ -201,7 +210,6 @@ function articulostj_page() {
         $output .= '<ul>';
         foreach ($result as $node) {
           $product = commerce_product_load($node->entity_id);
-            //'data' => l($product->sku, 'admin/commerce/products/' . $node->entity_id . '/edit')
           $output .= '<li>';
           $output .= '<a href="admin/commerce/products/'.$node->entity_id.'/edit">'.$product->sku.' -> Stock: '.$node->commerce_stock_value.'</a>';
           $output .= '</li>';
@@ -216,17 +224,17 @@ function articulostj_page() {
 }
 
 
-
+//Mismo metodo usado en el bloque, ahora con la informacion para mostrar en la pagina y devolvemos un array con los datos
 function _articulostj_page(){
 
-
+  //Obtenemos el valor de la configuracion del modulo con el stock maximo a mostrar
   $max = variable_get('articulostj_max', 3);
-
+  //Obtenemos los datos de la bd, ahora con el parametro page y con el maximo stock obtenido antes.
   $result = articulostj_contents('page',$max);
-  //Array to contain items for the page to render.
+
   $items = array();
   if (user_access('access articulostj content')) {
-  //Iterate over the resultset and format as links.
+
   foreach ($result as $node) {
           $product = commerce_product_load($node->entity_id);
           $items[] = array(
@@ -234,11 +242,10 @@ function _articulostj_page(){
           ); 
   }
 
-  if (!empty($items)) { //No content in the last week.
+  if (!empty($items)) { 
     $page_array['articulostj_arguments'] = array(
-      //Title serves as page subtitle
       '#title' => t('All posts from the last week'),
-      '#markup' => articulostj_page(),
+      '#markup' => articulostj_page(),//llamamos a la funcion anterior para obtener la vista para mostrar los datos de la pagina
     );
     
   }   else {
