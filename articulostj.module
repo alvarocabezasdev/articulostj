@@ -21,8 +21,10 @@ function articulostj_help($path, $arg) {
   
     case "admin/help#articulostj":
     
-      return t("Displays links to nodes created on this date"); 
-      
+      return '<p>' . t('Bloque desarrollado para mostrar un listado de los productos con stock 0 con su respectivo enlace a la edición del mismo. </br>La <a href="@blocks">pagina de administración de bloques</a> permite configurar tanto la parte interna del bloque como la posicion del mismo mediante "drag-and-drop". 
+        </br>Módulo personalizado desarrollado por Adrián Carvajal y Álvaro Cabezas. Escríbenos con tu duda a: <a href="https://www.gmail.com">alvarocabezasdev@gmail.com</a>.', array(
+        '@blocks' => url('admin/structure/block'),
+      )) . '</p>';      
       break; 
       
   }
@@ -42,55 +44,29 @@ function articulostj_block_info() {
   return $blocks;
 }
 
-/**
- * Custom content function. 
- * 
- * Set beginning and end dates, retrieve posts from database
- * saved in that time period.
- * 
- * @return 
- *   A result set of the targeted posts.
- */
-function articulostj_contents() {
 
-  //Use Database API to retrieve current posts.
+function articulostj_contents($display, $maxstock) {
+  //Use Database API to retrieve products.
+  //Si es un bloque usamos 0 por defecto para recuperar productos totalmente agotados.
+  if ($display == 'block'){
 
-  $query = db_select('field_data_commerce_stock', 'n')
+    $query = db_select('field_data_commerce_stock', 'n')
     ->fields('n')
-    ->condition('commerce_stock_value', 0) //Published.
-    ->execute();
+    ->condition('commerce_stock_value', 0); //Published.
+    
+  /*Si es una página usamos el umbral de la configuración para recuperar
+  * productos casi agotados.
+  */
+  } else {
 
-    return $query;
-}
-
-function commerce_produt_load($product_id) {
-  if (empty($product_id)) {
-    return FALSE;
+    $query = db_select('field_data_commerce_stock', 'n')
+      ->fields('n')
+      ->condition('commerce_stock_value', array(0,$maxstock),'BETWEEN');
+      
   }
 
-  $products = commerce_product_load_multiple(array($product_id), array());
-  return $products;
-}
-  
-  /*
-  //Use Database API to retrieve current posts.
-  $query = db_select('node', 'n')
-    ->fields('n', array('nid', 'title', 'created'))
-    ->condition('status', 1) //Published.
-    ->condition('created', array($start_time, $end_time), 'BETWEEN')
-    ->orderBy('created', 'DESC'); //Most recent first. Query paused here.
- 
-   if ($display == 'block'){ 
-  // Restrict the range if called with 'block' argument.
-    $query->range(0, $max_num);
-  } //Now proceeds to execute().
-  //If called by page, query proceeds directly to execute().
-  
   return $query->execute();
-  
-  */
-  
-
+}
 
 /**
  * Implements hook_block_view().
@@ -103,8 +79,7 @@ function articulostj_block_view($delta = '') {
       $block['subject'] = t('articulostj');
       if (user_access('access content')) {
         // Use our custom function to retrieve data.
-        $result = articulostj_contents('block');
-        //$result2 = commerce_produt_load($result);
+        $result = articulostj_contents('block',0);
         // Array to contain items for the block to render.
         $items = array();
 
@@ -112,7 +87,6 @@ function articulostj_block_view($delta = '') {
         foreach ($result as $node) {
           $product = commerce_product_load($node->entity_id);
           $items[] = array(
-            //http://localhost/todojuguetes/#overlay=admin/commerce/products/5/edit%3Fdestination%3Dadmin/commerce/products
             'data' => l($product->sku, 'admin/commerce/products/' . $node->entity_id . '/edit')
           ); 
         }
@@ -138,17 +112,25 @@ function articulostj_block_view($delta = '') {
 function articulostj_menu() {
   $items = array();
 
-  $items['admin/config/content/articulostj'] = array(
-    'title' => 'Articulostj',
+  $items['admin/config/content/articulostj_menu'] = array(
+    'title' => 'articulostj',
     'description' => 'Configuration for Articulostj module',
-    'page callback' => 'drupal_get_form',
-    'page arguments' => array('articulostj_form'),
+    'page callback' => 'articulostj_page',//drupal_get_form
     'access arguments' => array('access administration pages'),
-    'type' => MENU_NORMAL_ITEM,
+    'page arguments' => array('articulostj_form'),
+    'type' => MENU_NORMAL_ITEM
+  );
+
+
+    $items['articulostj_ra'] = array(
+    'title' => 'articulostj',
+    'page callback' => '_articulostj_page',
+    'access callback' => TRUE,
   );
 
   return $items;
 }
+
 
 /**
  * Page callback: Current posts settings
@@ -198,3 +180,80 @@ function articulostj_permission() {
     )
   );
 }
+
+
+/**
+* Implements hook_menu().
+*/
+
+
+function articulostj_page() {
+
+        $max = variable_get('articulostj_max', 3);
+        // Array to contain items for the block to render.
+        $output = '<p>Articulos con stock menor a: '.$max.'</p>';
+        // Iterate over the resultset and format as links.
+
+
+        $result = articulostj_contents('page',$max);
+
+
+        $output .= '<ul>';
+        foreach ($result as $node) {
+          $product = commerce_product_load($node->entity_id);
+            //'data' => l($product->sku, 'admin/commerce/products/' . $node->entity_id . '/edit')
+          $output .= '<li>';
+          $output .= '<a href="admin/commerce/products/'.$node->entity_id.'/edit">'.$product->sku.' -> Stock: '.$node->commerce_stock_value.'</a>';
+          $output .= '</li>';
+          
+        }
+        $output .= '</ul>';
+
+
+  
+  return $output;
+  
+}
+
+
+
+function _articulostj_page(){
+
+
+  $max = variable_get('articulostj_max', 3);
+
+  $result = articulostj_contents('page',$max);
+  //Array to contain items for the page to render.
+  $items = array();
+  //Iterate over the resultset and format as links.
+  foreach ($result as $node) {
+          $product = commerce_product_load($node->entity_id);
+          $items[] = array(
+            'data' => l($product->sku, 'admin/commerce/products/' . $node->entity_id . '/edit')
+          ); 
+  }
+
+  if (!empty($items)) { //No content in the last week.
+    $page_array['articulostj_arguments'] = array(
+      //Title serves as page subtitle
+      '#title' => t('All posts from the last week'),
+      '#markup' => articulostj_page(),
+    );
+    
+  }   else {
+    $page_array['articulostj_arguments'] = array(
+      '#title' => t('All posts from the last week'),
+      '#items' => $items,
+      
+    );
+
+}
+    return $page_array;  
+
+}
+
+
+
+
+
+
